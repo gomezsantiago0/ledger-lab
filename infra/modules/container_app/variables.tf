@@ -8,6 +8,11 @@ variable "resource_group_name" {
   type        = string
 }
 
+variable "resource_group_id" {
+  description = "Id del grupo de recursos (padre del entorno)."
+  type        = string
+}
+
 variable "location" {
   description = "Region de Azure."
   type        = string
