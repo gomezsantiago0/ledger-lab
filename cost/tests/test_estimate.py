@@ -23,7 +23,8 @@ PRICES = {
 
 
 def book():
-    return cost.PriceBook({"eastus": PRICES}, offline=True)
+    prices = {"eastus": PRICES, "Global": {"private_endpoint_hour": 0.01}}
+    return cost.PriceBook(prices, offline=True)
 
 
 def usage(**overrides):
@@ -153,3 +154,25 @@ def test_unknown_resource_fails_the_gate(tmp_path):
     vm = {"address": "azurerm_linux_virtual_machine.x", "mode": "managed",
           "type": "azurerm_linux_virtual_machine", "values": {}}
     assert run_cli(tmp_path, [vm]) == 1
+
+
+def private_endpoint():
+    return {
+        "address": "module.stack.azurerm_private_endpoint.example",
+        "mode": "managed",
+        "type": "azurerm_private_endpoint",
+        "values": {"location": "eastus"},
+    }
+
+
+def test_private_endpoint_is_billed_for_the_whole_month():
+    lines, unknown = cost.estimate({"dev": plan(private_endpoint())}, usage(), book())
+    assert unknown == []
+    assert total(lines) == pytest.approx(730 * 0.01)
+    assert total(lines) > 5
+
+
+def test_private_endpoint_without_global_price_is_an_error():
+    no_global = cost.PriceBook({"eastus": PRICES}, offline=True)
+    with pytest.raises(cost.PriceNotFound):
+        cost.estimate({"dev": plan(private_endpoint())}, usage(), no_global)

@@ -67,6 +67,18 @@ METERS = {
     ),
 }
 
+# El private endpoint solo tiene precio en la region "Global", no en una region comercial.
+GLOBAL_REGION = "Global"
+HOURS_PER_MONTH = 730
+GLOBAL_METERS = {
+    "private_endpoint_hour": (
+        "serviceName eq 'Virtual Network' and "
+        "productName eq 'Virtual Network Private Link' and skuName eq 'Standard'",
+        "Standard Private Endpoint",
+        "1 Hour",
+    ),
+}
+
 # Recursos sin cargo propio: su costo aparece, si lo hay, en los recursos que los usan.
 FREE_RESOURCES = {
     "azurerm_resource_group",
@@ -85,7 +97,7 @@ class PriceNotFound(Exception):
 
 
 def fetch_live_price(key: str, region: str) -> float:
-    odata, meter, unit = METERS[key]
+    odata, meter, unit = {**METERS, **GLOBAL_METERS}[key]
     query = f"{odata} and armRegionName eq '{region}' and type eq 'Consumption'"
     url = f"{PRICES_URL}?{urllib.parse.urlencode({'$filter': query})}"
     prices = []
@@ -192,6 +204,10 @@ def estimate_plan(name: str, plan: dict, usage: dict, book: PriceBook, grant: di
             storage = usage["state_storage_gb"] * book.price("blob_gb_month", region)
             writes = usage["state_writes_per_month"] / 10_000 * book.price("blob_10k_writes", region)
             lines.append(Line(name, address, storage + writes, f"{usage['state_storage_gb']} GB"))
+        elif kind == "azurerm_private_endpoint":
+            hourly = book.price("private_endpoint_hour", GLOBAL_REGION)
+            detail = f"{HOURS_PER_MONTH} h al mes a {hourly} USD/h"
+            lines.append(Line(name, address, HOURS_PER_MONTH * hourly, detail))
         else:
             unknown.append(address)
     return lines, unknown
@@ -261,6 +277,9 @@ def render(lines: list[Line], unknown: list[str], budget: float | None) -> str:
 def refresh_snapshot(path: Path, region: str) -> None:
     snapshot = json.loads(path.read_text()) if path.exists() else {}
     snapshot[region] = {key: fetch_live_price(key, region) for key in METERS}
+    snapshot[GLOBAL_REGION] = {
+        key: fetch_live_price(key, GLOBAL_REGION) for key in GLOBAL_METERS
+    }
     path.write_text(json.dumps(snapshot, indent=2, sort_keys=True) + "\n")
 
 
