@@ -9,6 +9,10 @@ terraform {
       source  = "hashicorp/time"
       version = "~> 0.12"
     }
+    azapi = {
+      source  = "Azure/azapi"
+      version = "~> 2.0"
+    }
   }
 }
 
@@ -24,19 +28,43 @@ resource "azurerm_log_analytics_workspace" "this" {
   tags                = var.tags
 }
 
-resource "azurerm_container_app_environment" "this" {
-  name                       = "cae-${var.name}"
-  resource_group_name        = var.resource_group_name
-  location                   = var.location
-  logs_destination           = var.logs_enabled ? "log-analytics" : null
-  log_analytics_workspace_id = var.logs_enabled ? azurerm_log_analytics_workspace.this[0].id : null
-  tags                       = var.tags
+# El entorno se crea con azapi: si no se pide el modo, Azure crea uno tipo Express, y Express
+# no admite secretos de Key Vault. El recurso de azurerm no permite fijar el modo.
+resource "azapi_resource" "environment" {
+  type                      = "Microsoft.App/managedEnvironments@2026-07-01"
+  name                      = "cae-${var.name}"
+  parent_id                 = var.resource_group_id
+  location                  = var.location
+  tags                      = var.tags
+  schema_validation_enabled = false
 
-  # Azure lo agrega siempre; declararlo evita un cambio perpetuo en cada plan. No tiene cargo fijo.
-  workload_profile {
-    name                  = "Consumption"
-    workload_profile_type = "Consumption"
+  body = {
+    properties = {
+      environmentMode = "WorkloadProfiles"
+      workloadProfiles = [
+        {
+          name                = "Consumption"
+          workloadProfileType = "Consumption"
+        }
+      ]
+      appLogsConfiguration = var.logs_enabled ? {
+        destination = "log-analytics"
+        logAnalyticsConfiguration = {
+          customerId = azurerm_log_analytics_workspace.this[0].workspace_id
+        }
+      } : null
+    }
   }
+
+  sensitive_body = var.logs_enabled ? {
+    properties = {
+      appLogsConfiguration = {
+        logAnalyticsConfiguration = {
+          sharedKey = azurerm_log_analytics_workspace.this[0].primary_shared_key
+        }
+      }
+    }
+  } : null
 }
 
 # Identidad asignada por el usuario: existe, y tiene permisos, antes de crear la app.
@@ -63,7 +91,7 @@ resource "time_sleep" "rbac_propagation" {
 resource "azurerm_container_app" "this" {
   name                         = "ca-${var.name}"
   resource_group_name          = var.resource_group_name
-  container_app_environment_id = azurerm_container_app_environment.this.id
+  container_app_environment_id = azapi_resource.environment.id
   revision_mode                = "Single"
   workload_profile_name        = "Consumption"
   tags                         = var.tags

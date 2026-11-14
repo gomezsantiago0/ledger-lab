@@ -13,6 +13,11 @@ variable "location" {
   type        = string
 }
 
+variable "resource_group_id" {
+  description = "Id del grupo de recursos donde se crea el entorno."
+  type        = string
+}
+
 variable "image" {
   description = "Imagen del contenedor."
   type        = string
