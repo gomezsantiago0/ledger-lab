@@ -208,6 +208,9 @@ def estimate_plan(name: str, plan: dict, usage: dict, book: PriceBook, grant: di
             hourly = book.price("private_endpoint_hour", GLOBAL_REGION)
             detail = f"{HOURS_PER_MONTH} h al mes a {hourly} USD/h"
             lines.append(Line(name, address, HOURS_PER_MONTH * hourly, detail))
+        elif kind == "azapi_resource" and "managedEnvironments" in values.get("type", ""):
+            note = "el plan de consumo no cobra por el ambiente"
+            lines.append(Line(name, address, 0.0, note))
         else:
             unknown.append(address)
     return lines, unknown

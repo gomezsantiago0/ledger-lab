@@ -176,3 +176,18 @@ def test_private_endpoint_without_global_price_is_an_error():
     no_global = cost.PriceBook({"eastus": PRICES}, offline=True)
     with pytest.raises(cost.PriceNotFound):
         cost.estimate({"dev": plan(private_endpoint())}, usage(), no_global)
+
+
+def environment():
+    return {
+        "address": "module.stack.module.app.azapi_resource.environment",
+        "mode": "managed",
+        "type": "azapi_resource",
+        "values": {"type": "Microsoft.App/managedEnvironments@2026-07-01"},
+    }
+
+
+def test_container_apps_environment_has_no_cost():
+    lines, unknown = cost.estimate({"dev": plan(environment())}, usage(), book())
+    assert total(lines) == 0
+    assert unknown == []
