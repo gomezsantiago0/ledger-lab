@@ -86,7 +86,8 @@ module "app" {
   key_vault_id          = module.key_vault.id
   secret_ids            = module.key_vault.secret_ids
   max_replicas          = var.max_replicas
-  logs_enabled          = local.is_prod
+  logs_enabled          = local.is_prod && var.shared_environment_id == null
+  shared_environment_id = var.shared_environment_id
   rbac_propagation_wait = var.rbac_propagation_wait
   tags                  = local.tags
 

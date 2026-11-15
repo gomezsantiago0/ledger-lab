@@ -73,3 +73,9 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "shared_environment_id" {
+  description = "Id de un entorno de Container Apps ya existente. Con null se crea uno propio."
+  type        = string
+  default     = null
+}

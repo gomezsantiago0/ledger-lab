@@ -49,16 +49,24 @@ variable "use_free_offer" {
   default = true
 }
 
+# Azure for Students solo permite 1 Container Apps Environment por suscripcion:
+# prod reutiliza el de dev (dev debe desplegarse antes y destruirse despues).
+data "azurerm_container_app_environment" "dev" {
+  name                = "cae-ledger-dev"
+  resource_group_name = "rg-ledger-dev"
+}
+
 module "stack" {
   source = "../../modules/stack"
 
-  environment       = "prod"
-  location          = var.location
-  database_location = var.database_location
-  image             = var.image
-  use_free_offer    = var.use_free_offer
-  max_replicas      = 3
-  jwt_minutes       = 15
+  environment           = "prod"
+  location              = var.location
+  database_location     = var.database_location
+  image                 = var.image
+  use_free_offer        = var.use_free_offer
+  max_replicas          = 3
+  jwt_minutes           = 15
+  shared_environment_id = data.azurerm_container_app_environment.dev.id
 }
 
 output "app_url" {

@@ -154,3 +154,18 @@ run "el_tope_de_replicas_protege_el_credito" {
 
   expect_failures = [var.max_replicas]
 }
+
+run "prod_comparte_el_ambiente" {
+  command = apply
+
+  variables {
+    environment           = "prod"
+    max_replicas          = 3
+    shared_environment_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dev/providers/Microsoft.App/managedEnvironments/cae-dev"
+  }
+
+  assert {
+    condition     = module.app.environment_id == "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dev/providers/Microsoft.App/managedEnvironments/cae-dev"
+    error_message = "La app debe usar el entorno compartido que se le pasa."
+  }
+}

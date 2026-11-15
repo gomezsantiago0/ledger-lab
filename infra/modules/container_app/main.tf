@@ -28,9 +28,17 @@ resource "azurerm_log_analytics_workspace" "this" {
   tags                = var.tags
 }
 
+# Al agregar count, el entorno de dev pasa a ser el indice [0]: moved evita recrearlo.
+moved {
+  from = azapi_resource.environment
+  to   = azapi_resource.environment[0]
+}
+
 # El entorno se crea con azapi: si no se pide el modo, Azure crea uno tipo Express, y Express
 # no admite secretos de Key Vault. El recurso de azurerm no permite fijar el modo.
 resource "azapi_resource" "environment" {
+  count = var.shared_environment_id == null ? 1 : 0
+
   type                      = "Microsoft.App/managedEnvironments@2026-07-01"
   name                      = "cae-${var.name}"
   parent_id                 = var.resource_group_id
@@ -91,7 +99,7 @@ resource "time_sleep" "rbac_propagation" {
 resource "azurerm_container_app" "this" {
   name                         = "ca-${var.name}"
   resource_group_name          = var.resource_group_name
-  container_app_environment_id = azapi_resource.environment.id
+  container_app_environment_id = coalesce(var.shared_environment_id, one(azapi_resource.environment[*].id))
   revision_mode                = "Single"
   workload_profile_name        = "Consumption"
   tags                         = var.tags
