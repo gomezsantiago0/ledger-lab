@@ -57,3 +57,9 @@ variable "rbac_propagation_wait" {
   type        = string
   default     = "90s"
 }
+
+variable "shared_environment_id" {
+  description = "Id de un entorno de Container Apps ya existente, para reutilizarlo en vez de crear uno."
+  type        = string
+  default     = null
+}
